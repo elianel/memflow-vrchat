@@ -46,14 +46,11 @@ template <typename T>
 inline bool Memory::Read(Address address, T &out, size_t size)
 {
         std::lock_guard<std::mutex> l(mutex);
+        if (proc.state().tag != ProcessState::Tag::ProcessState_Alive)
+                return false;
         CSliceMut<uint8_t> buf;
         buf.len = sizeof(T) * size;
         buf.data = new uint8_t[(int)buf.len];
-        if (proc.state().tag != ProcessState::Tag::ProcessState_Alive)
-        {
-                delete[] buf.data;
-                return false;
-        }
         int32_t readres = proc.read_raw_into(address, buf);
         std::memcpy(&out, buf.data, buf.len);
         delete[] buf.data;
@@ -66,12 +63,7 @@ inline bool Memory::Write(Address address, const T &value, size_t size)
         CSliceRef<uint8_t> buf;
         buf.data = reinterpret_cast<const uint8_t *>(&value);
         buf.len = sizeof(T) * size;
-        if (proc.state().tag == ProcessState::Tag::ProcessState_Alive &&
-            proc.write_raw(address, buf) == 0)
-        {
-                return true;
-        }
-        return false;
+        return proc.state().tag == ProcessState::Tag::ProcessState_Alive && proc.write_raw(address, buf) == 0;
 }
 
 // thanks xoner
